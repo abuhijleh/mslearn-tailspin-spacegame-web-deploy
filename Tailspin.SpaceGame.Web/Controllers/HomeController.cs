@@ -11,10 +11,18 @@ namespace TailSpin.SpaceGame.Web.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly IDocumentDBRepository _dbRespository;
-        public HomeController(IDocumentDBRepository dbRepository)
+        // High score repository.
+        private readonly IDocumentDBRepository<Score> _scoreRepository;
+        // User profile repository.
+        private readonly IDocumentDBRepository<Profile> _profileRespository;
+
+        public HomeController(
+            IDocumentDBRepository<Score> scoreRepository,
+            IDocumentDBRepository<Profile> profileRespository
+            )
         {
-            _dbRespository = dbRepository;
+            _scoreRepository = scoreRepository;
+            _profileRespository = profileRespository;
         }
 
         public async Task<IActionResult> Index(
@@ -39,7 +47,7 @@ namespace TailSpin.SpaceGame.Web.Controllers
                     "Trio"
                 },
 
-                GameRegions = new List<string>()
+                    GameRegions = new List<string>()
                 {
                     "Milky Way",
                     "Andromeda",
@@ -60,7 +68,7 @@ namespace TailSpin.SpaceGame.Web.Controllers
                     (string.IsNullOrEmpty(region) || score.GameRegion == region);
 
                 // Fetch the total number of results in the background.
-                var countItemsTask = _dbRespository.CountScoresAsync(mode, region);
+                var countItemsTask = _scoreRepository.CountItemsAsync(queryPredicate);
 
                 // Fetch the scores that match the current filter.
                 IEnumerable<Score> scores = await _scoreRepository.GetItemsAsync(
@@ -72,6 +80,16 @@ namespace TailSpin.SpaceGame.Web.Controllers
 
                 // Wait for the total count.
                 vm.TotalResults = await countItemsTask;
+
+                // Set previous and next hyperlinks.
+                if (page > 1)
+                {
+                    vm.PrevLink = $"/?page={page - 1}&pageSize={pageSize}&mode={mode}&region={region}#leaderboard";
+                }
+                if (vm.TotalResults > page * pageSize)
+                {
+                    vm.NextLink = $"/?page={page + 1}&pageSize={pageSize}&mode={mode}&region={region}#leaderboard";
+                }
 
                 // Fetch the user profile for each score.
                 // This creates a list that's parallel with the scores collection.
@@ -99,7 +117,7 @@ namespace TailSpin.SpaceGame.Web.Controllers
             try
             {
                 // Fetch the user profile with the given identifier.
-                return View(new ProfileViewModel { Profile = await _dbRespository.GetProfileAsync(id), Rank = rank });
+                return View(new ProfileViewModel { Profile = await _profileRespository.GetItemAsync(id), Rank = rank });
             }
             catch (Exception)
             {
