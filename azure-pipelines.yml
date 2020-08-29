@@ -65,6 +65,9 @@ stages:
     - publish: '$(Build.ArtifactStagingDirectory)'
       artifact: drop
 
+    - task: WhiteSource Bolt@20
+      displayName: 'Run WhiteSource Bolt'
+
   - job: BuildDacpac
     pool:
       vmImage: 'windows-2019'
